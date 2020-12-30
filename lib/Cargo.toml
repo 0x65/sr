@@ -7,3 +7,6 @@ edition = "2018"
 [lib]
 name = "sr_lib"
 path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
