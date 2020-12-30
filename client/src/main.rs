@@ -3,6 +3,8 @@ use std::net::TcpStream;
 use sr_lib::commands::ClientCommand;
 use sr_lib::networking;
 
+mod ui;
+
 struct ClientSession {
     session_id: u64,
     connection: Option<TcpStream>,
@@ -61,7 +63,12 @@ impl ClientSession {
 }
 
 fn main() {
+    let screen = ui::Screen::initialize();
+    screen.run();
+
+    /*
     let mut session = ClientSession::initialize(1);
     let cmd = ClientCommand::HEARTBEAT;
     session.send_cmd(&cmd);
+    */
 }
