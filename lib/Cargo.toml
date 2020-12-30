@@ -1,0 +1,9 @@
+[package]
+name = "sr_lib"
+version = "0.0.1"
+authors = ["apelimsky <a@0x41.co>"]
+edition = "2018"
+
+[lib]
+name = "sr_lib"
+path = "src/lib.rs"

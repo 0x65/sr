@@ -1,0 +1,13 @@
+[package]
+name = "sr_client"
+version = "0.0.1"
+authors = ["apelimsky <a@0x41.co>"]
+edition = "2018"
+
+[[bin]]
+name = "sr_client"
+path = "src/main.rs"
+
+[dependencies]
+sr_lib = { path = "../lib", version = "0.0.1" }
+
