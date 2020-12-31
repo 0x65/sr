@@ -3,6 +3,9 @@ use std::net::TcpStream;
 use sr_lib::commands::ClientCommand;
 use sr_lib::networking;
 
+use crate::ui::screens::login::LoginScreen;
+use crate::ui::terminal::TerminalUI;
+
 mod ui;
 
 struct ClientSession {
@@ -63,12 +66,6 @@ impl ClientSession {
 }
 
 fn main() {
-    let screen = ui::Screen::initialize();
-    screen.run();
-
-    /*
-    let mut session = ClientSession::initialize(1);
-    let cmd = ClientCommand::HEARTBEAT;
-    session.send_cmd(&cmd);
-    */
+    let mut tui = TerminalUI::initialize().expect("failed to init terminal");
+    tui.run(LoginScreen {}).expect("i/o error");
 }
