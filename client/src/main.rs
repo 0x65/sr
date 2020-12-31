@@ -67,5 +67,5 @@ impl ClientSession {
 
 fn main() {
     let mut tui = TerminalUI::initialize().expect("failed to init terminal");
-    tui.run(LoginScreen {}).expect("i/o error");
+    tui.run(LoginScreen::new()).expect("i/o error");
 }

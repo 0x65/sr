@@ -17,6 +17,8 @@ pub type TerminalT = Terminal<BackendT>;
 
 pub trait Screen {
     fn render(&self, frame: &mut FrameT);
+    fn handle_event(&mut self, _event: &ClientEvent) {}
+    fn cleanup(&self) {}
 }
 
 pub struct TerminalUI {
@@ -32,7 +34,7 @@ impl TerminalUI {
         Ok(TerminalUI { terminal })
     }
 
-    pub fn run(&mut self, screen: impl Screen) -> Result<(), Box<dyn Error>> {
+    pub fn run(&mut self, mut screen: impl Screen) -> Result<(), Box<dyn Error>> {
         let events = ClientEvents::initialize();
 
         loop {
@@ -45,16 +47,22 @@ impl TerminalUI {
             })?;
 
             // process input
-            if let ClientEvent::Input(input) = events.next()? {
-                match input {
-                    Key::Char('q') => {
-                        break;
-                    }
-                    _ => {}
-                }
+            let event = events.next()?;
+            if is_exit_event(&event) {
+                screen.cleanup();
+                break;
+            } else {
+                screen.handle_event(&event);
             }
         }
 
         Ok(())
+    }
+}
+
+fn is_exit_event(event: &ClientEvent) -> bool {
+    match event {
+        ClientEvent::Input(Key::Char('q')) => true,
+        _ => false,
     }
 }
