@@ -1,71 +1,42 @@
-use std::net::TcpStream;
+use std::net::Ipv4Addr;
 
-use sr_lib::commands::ClientCommand;
-use sr_lib::networking;
+use enet::{Packet, PacketMode};
 
+use sr_lib::networking::Network;
+
+/*
 use crate::ui::screens::login::LoginScreen;
 use crate::ui::terminal::TerminalUI;
+*/
 
 mod ui;
 
-struct ClientSession {
-    session_id: u64,
-    connection: Option<TcpStream>,
-}
-
-impl ClientSession {
-    fn initialize(session_id: u64) -> ClientSession {
-        ClientSession {
-            session_id: session_id,
-            connection: None,
-        }
-    }
-
-    fn send_cmd(&mut self, cmd: &ClientCommand) -> bool {
-        if self.connection.is_none() {
-            self.connection = self._open_connection();
-        }
-
-        match &self.connection {
-            Some(connection) => {
-                match serde_json::to_writer(connection, &cmd) {
-                    Ok(_) => true,
-                    Err(e) => {
-                        let serialized = serde_json::to_string(&cmd).unwrap();
-                        eprintln!("SEND ERROR: Dropping command {} ({})", serialized, e);
-                        // TODO: only reset if this is a connection error
-                        self.connection = None;
-                        false
-                    }
-                }
-            }
-            None => {
-                let serialized = serde_json::to_string(&cmd).unwrap();
-                eprintln!("NO CONNECTION: Dropping command {}", serialized);
-                false
-            }
-        }
-    }
-
-    fn _open_connection(&mut self) -> Option<TcpStream> {
-        let host = networking::get_server_host();
-        let port = networking::get_server_port();
-        let remote_addr = format!("{host}:{port}", host = host, port = port);
-
-        match TcpStream::connect(&remote_addr) {
-            Ok(connection) => {
-                eprintln!("Opened remote connection to {}", remote_addr);
-                Some(connection)
-            }
-            Err(e) => {
-                eprintln!("Could not open remote connection: {}", e);
-                None
-            }
-        }
-    }
-}
-
 fn main() {
+    let network = Network::new().expect("error during network setup");
+    let mut host = network
+        .create_host(None)
+        .expect("error during host creation");
+
+    let mut peer = host
+        .connect(Ipv4Addr::LOCALHOST)
+        .expect("error during connect");
+
+    peer.raw
+        .send_packet(
+            Packet::new(b"harro", PacketMode::ReliableSequenced).unwrap(),
+            1,
+        )
+        .unwrap();
+
+    // peer.raw.disconnect_later(5);
+
+    loop {
+        let e = host.raw.service(1000).unwrap();
+        println!("received event: {:#?}", e);
+    }
+
+    /*
     let mut tui = TerminalUI::initialize().expect("failed to init terminal");
     tui.run(LoginScreen::new()).expect("i/o error");
+    */
 }

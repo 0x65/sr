@@ -9,4 +9,5 @@ name = "sr_lib"
 path = "src/lib.rs"
 
 [dependencies]
+enet = "^0.2.3"
 serde = { version = "^1.0", features = ["derive"] }

@@ -1,58 +1,44 @@
-use std::io::Read;
-use std::net::{Shutdown, TcpListener};
+use std::net::Ipv4Addr;
 use std::str::from_utf8;
-use std::thread;
 
-use sr_lib::networking;
+use enet::{Event, Packet, PacketMode};
+
+use sr_lib::networking::Network;
 
 mod db;
 
 fn main() {
     // TODO: move to separate server startup script
-    match db::setup_db() {
-        Ok(_) => {
-            eprintln!("Successfully set up DB...");
-        }
-        Err(e) => {
-            eprintln!("Fatal error during setup of DB: {}", e);
-            panic!()
-        }
-    };
+    db::setup_db().expect("error during db setup");
 
-    let port = networking::get_server_port();
-    let local_addr = format!("0.0.0.0:{port}", port = port);
-    let listener = TcpListener::bind(local_addr).unwrap();
+    let network = Network::new().expect("error during network setup");
+    let mut host = network
+        .create_host(Some(&Ipv4Addr::UNSPECIFIED))
+        .expect("error during host creation");
 
-    println!("Listening on port {port}...", port = port);
-
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut stream) => {
-                let peer_addr = stream.peer_addr().unwrap();
-                println!("New connection from {}!", peer_addr);
-
-                thread::spawn(move || {
-                    let mut buffer = [0 as u8; 64];
-                    while match stream.read(&mut buffer) {
-                        Ok(size) => {
-                            if size > 0 {
-                                println!("Received data: {}", from_utf8(&buffer[0..size]).unwrap());
-                            }
-                            true
-                        }
-                        Err(e) => {
-                            println!("Encountered read error: {}", e);
-                            stream.shutdown(Shutdown::Both).unwrap();
-                            false
-                        }
-                    } {}
-                });
+    loop {
+        // TODO: timeout of 0?
+        match host.raw.service(1000).expect("service failed") {
+            Some(Event::Connect(_)) => println!("new connection!"),
+            Some(Event::Disconnect(_, _)) => println!("disconnect!"),
+            Some(Event::Receive {
+                ref mut sender,
+                channel_id,
+                ref packet,
+            }) => {
+                let content = from_utf8(packet.data()).unwrap();
+                println!(
+                    "got packet from {:?} on channel {}, content: {}",
+                    sender, channel_id, content
+                );
+                sender
+                    .send_packet(
+                        Packet::new(b"supbro", PacketMode::ReliableSequenced).unwrap(),
+                        1,
+                    )
+                    .unwrap();
             }
-            Err(e) => {
-                println!("Encountered socket error: {}", e);
-            }
+            _ => (),
         }
     }
-
-    drop(listener);
 }
