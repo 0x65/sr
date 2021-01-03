@@ -1,23 +1,19 @@
 use sr_lib::networking::Network;
 use termion::event::Key;
 
-use crate::events::{Event, Events};
+use crate::input::{Input, InputEvent};
 use crate::screens::login::LoginScreen;
 use crate::ui::{Screen, UI};
 
 pub struct Game {
-    events: Events,
+    input: Input,
     network: Network,
     ui: UI,
 }
 
 impl Game {
-    pub fn new(events: Events, network: Network, ui: UI) -> Game {
-        Game {
-            events,
-            network,
-            ui,
-        }
+    pub fn new(input: Input, network: Network, ui: UI) -> Game {
+        Game { input, network, ui }
     }
 
     pub fn run(&mut self) {
@@ -27,14 +23,14 @@ impl Game {
             // TODO: proper error handling
             self.ui.render(&screen).expect("failed to render screen");
 
-            let event = self.events.recv().expect("event thread disconnected");
+            let input = self.input.recv().expect("input thread disconnected");
 
-            match event {
-                Some(Event::Input(Key::Char('q'))) => {
+            match input {
+                Some(InputEvent::Input(Key::Char('q'))) => {
                     break;
                 }
                 Some(e) => {
-                    screen.handle_event(&e);
+                    screen.handle_input(&e);
                 }
                 None => {}
             }

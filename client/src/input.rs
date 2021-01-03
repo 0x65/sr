@@ -5,48 +5,42 @@ use std::thread;
 use termion::event::Key;
 use termion::input::TermRead;
 
-pub enum Event {
+pub enum InputEvent {
     Input(Key),
 }
 
 #[derive(Debug)]
-pub enum EventError {
+pub enum InputError {
     Disconnected,
 }
 
-pub struct Events {
-    receiver: mpsc::Receiver<Event>,
-    input_handle: thread::JoinHandle<()>,
+pub struct Input {
+    receiver: mpsc::Receiver<InputEvent>,
+    handle: thread::JoinHandle<()>,
 }
 
-impl Events {
-    pub fn new() -> Events {
-        // if adding additional handles: re-use receiver, clone sender
+impl Input {
+    pub fn new() -> Input {
         let (sender, receiver) = mpsc::channel();
-
-        let input_handle = thread::spawn(move || {
+        let handle = thread::spawn(move || {
             let stdin = io::stdin();
             for event in stdin.keys() {
                 if let Ok(key) = event {
-                    if let Err(err) = sender.send(Event::Input(key)) {
+                    if let Err(err) = sender.send(InputEvent::Input(key)) {
                         eprintln!("{}", err);
                         return;
                     }
                 }
             }
         });
-
-        Events {
-            receiver,
-            input_handle,
-        }
+        Input { receiver, handle }
     }
 
-    pub fn recv(&self) -> Result<Option<Event>, EventError> {
+    pub fn recv(&self) -> Result<Option<InputEvent>, InputError> {
         match self.receiver.try_recv() {
             Ok(e) => Ok(Some(e)),
             Err(mpsc::TryRecvError::Empty) => Ok(None),
-            Err(mpsc::TryRecvError::Disconnected) => Err(EventError::Disconnected),
+            Err(mpsc::TryRecvError::Disconnected) => Err(InputError::Disconnected),
         }
     }
 }
