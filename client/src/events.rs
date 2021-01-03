@@ -5,17 +5,22 @@ use std::thread;
 use termion::event::Key;
 use termion::input::TermRead;
 
-pub enum ClientEvent {
+pub enum Event {
     Input(Key),
 }
 
-pub struct ClientEvents {
-    receiver: mpsc::Receiver<ClientEvent>,
+#[derive(Debug)]
+pub enum EventError {
+    Disconnected,
+}
+
+pub struct Events {
+    receiver: mpsc::Receiver<Event>,
     input_handle: thread::JoinHandle<()>,
 }
 
-impl ClientEvents {
-    pub fn initialize() -> ClientEvents {
+impl Events {
+    pub fn new() -> Events {
         // if adding additional handles: re-use receiver, clone sender
         let (sender, receiver) = mpsc::channel();
 
@@ -23,7 +28,7 @@ impl ClientEvents {
             let stdin = io::stdin();
             for event in stdin.keys() {
                 if let Ok(key) = event {
-                    if let Err(err) = sender.send(ClientEvent::Input(key)) {
+                    if let Err(err) = sender.send(Event::Input(key)) {
                         eprintln!("{}", err);
                         return;
                     }
@@ -31,13 +36,17 @@ impl ClientEvents {
             }
         });
 
-        ClientEvents {
+        Events {
             receiver,
             input_handle,
         }
     }
 
-    pub fn next(&self) -> Result<ClientEvent, mpsc::RecvError> {
-        self.receiver.recv()
+    pub fn recv(&self) -> Result<Option<Event>, EventError> {
+        match self.receiver.try_recv() {
+            Ok(e) => Ok(Some(e)),
+            Err(mpsc::TryRecvError::Empty) => Ok(None),
+            Err(mpsc::TryRecvError::Disconnected) => Err(EventError::Disconnected),
+        }
     }
 }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // todo remove debug
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub enum ClientCommand {
     HEARTBEAT,
 }
