@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use sr_lib::networking::Network;
 use termion::event::Key;
 
@@ -12,28 +14,47 @@ pub struct Game {
 }
 
 impl Game {
+    const TICKS_PER_SECOND: u32 = 25;
+    const SKIP_TICKS: u32 = 1000 / Game::TICKS_PER_SECOND;
+    const MAX_FRAMESKIP: u32 = 5;
+
     pub fn new(input: Input, network: Network, ui: UI) -> Game {
         Game { input, network, ui }
     }
 
+    // TODO: proper error handling
     pub fn run(&mut self) {
         let mut screen = LoginScreen::new();
 
-        loop {
-            // TODO: proper error handling
-            self.ui.render(&screen).expect("failed to render screen");
+        let clock = Instant::now();
+        let mut next_tick = clock.elapsed().as_millis();
 
-            let input = self.input.recv().expect("input thread disconnected");
+        // TODO: replace int additions/as_millis conversions with Duration?
+        'game: loop {
+            let mut loops = 0;
+            while clock.elapsed().as_millis() > next_tick && loops < Game::MAX_FRAMESKIP {
+                let input = self.input.recv().expect("input thread disconnected");
+                match input {
+                    Some(InputEvent::Input(Key::Char('q'))) => {
+                        break 'game;
+                    }
+                    Some(e) => {
+                        screen.handle_input(&e);
+                    }
+                    None => {}
+                }
 
-            match input {
-                Some(InputEvent::Input(Key::Char('q'))) => {
-                    break;
-                }
-                Some(e) => {
-                    screen.handle_input(&e);
-                }
-                None => {}
+                next_tick += Game::SKIP_TICKS as u128;
+                loops += 1;
             }
+
+            let interpolation = (clock.elapsed().as_millis() as f64 + Game::SKIP_TICKS as f64
+                - next_tick as f64)
+                / Game::SKIP_TICKS as f64;
+
+            self.ui
+                .render(&screen, interpolation)
+                .expect("failed to render screen");
         }
     }
 }

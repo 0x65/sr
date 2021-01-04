@@ -14,7 +14,7 @@ pub type FrameT<'a> = Frame<'a, BackendT>;
 pub type TerminalT = Terminal<BackendT>;
 
 pub trait Screen {
-    fn render(&self, frame: &mut FrameT);
+    fn render(&self, frame: &mut FrameT, interpolation: f64);
     fn handle_input(&mut self, _input: &InputEvent) {}
 }
 
@@ -31,12 +31,12 @@ impl UI {
         Ok(UI { terminal })
     }
 
-    pub fn render(&mut self, screen: &impl Screen) -> Result<(), io::Error> {
+    pub fn render(&mut self, screen: &impl Screen, interpolation: f64) -> Result<(), io::Error> {
         self.terminal.draw(|f| {
             let border = Block::default().borders(Borders::ALL);
             f.render_widget(border, f.size());
 
-            screen.render(f);
+            screen.render(f, interpolation);
         })
     }
 }
