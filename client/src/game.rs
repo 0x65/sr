@@ -67,11 +67,7 @@ impl Game {
         *num_frames += 1;
         let elapsed = clock.elapsed().as_millis();
         if elapsed > 1000 {
-            println!(
-                "{}FPS: {}",
-                Goto(2, 2),
-                (*num_frames * 1000) as u128 / elapsed
-            );
+            println!("{}FPS: {}", Goto(2, 2), *num_frames);
             *clock = Instant::now();
             *num_frames = 0;
         }
