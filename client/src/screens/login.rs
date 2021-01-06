@@ -20,7 +20,7 @@ impl LoginScreen {
 }
 
 impl Screen for LoginScreen {
-    fn render(&self, frame: &mut FrameT, _interpolation: f64) {
+    fn render(&self, frame: &mut FrameT, _interp_ms: f64) {
         let dialog_bounds = center_rect(60, 20, frame.size());
 
         let dialog = Block::default().title("Login").borders(Borders::ALL);

@@ -14,7 +14,7 @@ pub type FrameT<'a> = Frame<'a, BackendT>;
 pub type TerminalT = Terminal<BackendT>;
 
 pub trait Screen {
-    fn render(&self, frame: &mut FrameT, interpolation: f64);
+    fn render(&self, frame: &mut FrameT, interp_ms: f64);
     fn handle_input(&mut self, _input: &InputEvent) {}
 }
 
