@@ -3,7 +3,8 @@ use std::str::from_utf8;
 
 use enet::{Event, Packet, PacketMode};
 
-use sr_lib::networking::Network;
+use sr_lib::network::Network;
+use sr_lib::network::config::NetworkConfig;
 
 mod db;
 
@@ -11,14 +12,16 @@ fn main() {
     // TODO: move to separate server startup script
     db::setup_db().expect("error during db setup");
 
-    let network = Network::new().expect("error during network setup");
-    let mut host = network
-        .create_host(Some(&Ipv4Addr::UNSPECIFIED))
+    let mut network = Network::new()
+        .expect("error during network setup")
+        .create_manager(NetworkConfig {
+            local_addr: Some(Ipv4Addr::UNSPECIFIED),
+        })
         .expect("error during host creation");
 
     loop {
         // TODO: timeout of 0?
-        match host.raw.service(1000).expect("service failed") {
+        match network.step(1000).expect("failed to read network events") {
             Some(Event::Connect(_)) => println!("new connection!"),
             Some(Event::Disconnect(_, _)) => println!("disconnect!"),
             Some(Event::Receive {

@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
-use sr_lib::networking::Network;
+use sr_lib::network::Network;
+use sr_lib::network::config::NetworkConfig;
 use termion::cursor::Goto;
 use termion::event::Key;
 
@@ -27,15 +28,35 @@ impl Game {
     pub fn run(&mut self) {
         let mut screen = LoginScreen::new();
 
+        // TODO: just take a NetworkManager in constructor?
+        let mut network = self
+            .network
+            .create_manager(NetworkConfig { local_addr: None })
+            .expect("failed to create network manager");
+
         let clock = Instant::now();
         let mut next_tick = clock.elapsed();
 
         let mut debug_clock = Instant::now();
         let mut debug_num_frames = 0;
 
+        /*
+        network
+            .connect(Ipv4Addr::LOCALHOST)
+            .expect("connect error")
+            .peer
+            .send_packet(
+                Packet::new(b"hello world", PacketMode::ReliableSequenced).unwrap(),
+                1,
+            )
+            .unwrap();
+        */
+
         'game: loop {
             let mut loops = 0;
             while clock.elapsed() > next_tick && loops < Game::MAX_FRAMESKIP {
+                let packet = network.step(0).unwrap();
+
                 let input = self.input.recv().expect("input thread disconnected");
                 match input {
                     Some(InputEvent::Input(Key::Char('q'))) => {
@@ -73,31 +94,3 @@ impl Game {
         }
     }
 }
-
-/*
-use std::net::Ipv4Addr;
-
-use enet::{Packet, PacketMode};
-
-    let mut host = network
-        .create_host(None)
-        .expect("error during host creation");
-
-    let mut peer = host
-        .connect(Ipv4Addr::LOCALHOST)
-        .expect("error during connect");
-
-    peer.raw
-        .send_packet(
-            Packet::new(b"harro", PacketMode::ReliableSequenced).unwrap(),
-            1,
-        )
-        .unwrap();
-
-    // peer.raw.disconnect_later(5);
-
-    loop {
-        let e = host.raw.service(1000).unwrap();
-        println!("received event: {:#?}", e);
-    }
-*/

@@ -1,4 +1,4 @@
-use sr_lib::networking::Network;
+use sr_lib::network::Network;
 
 use crate::game::Game;
 use crate::input::Input;
