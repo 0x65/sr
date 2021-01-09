@@ -1,7 +1,8 @@
+use std::net::Ipv4Addr;
 use std::time::{Duration, Instant};
 
-use sr_lib::network::Network;
 use sr_lib::network::config::NetworkConfig;
+use sr_lib::network::Network;
 use termion::cursor::Goto;
 use termion::event::Key;
 
@@ -31,8 +32,11 @@ impl Game {
         // TODO: just take a NetworkManager in constructor?
         let mut network = self
             .network
-            .create_manager(NetworkConfig { local_addr: None })
-            .expect("failed to create network manager");
+            .create_manager(NetworkConfig {
+                local_addr: None,
+                remote_addr: Some(Ipv4Addr::LOCALHOST),
+            })
+            .expect("failed to create manager");
 
         let clock = Instant::now();
         let mut next_tick = clock.elapsed();
@@ -40,25 +44,34 @@ impl Game {
         let mut debug_clock = Instant::now();
         let mut debug_num_frames = 0;
 
-        /*
-        network
-            .connect(Ipv4Addr::LOCALHOST)
-            .expect("connect error")
-            .peer
-            .send_packet(
-                Packet::new(b"hello world", PacketMode::ReliableSequenced).unwrap(),
-                1,
-            )
-            .unwrap();
-        */
+        let mut message: Option<&str> = None;
 
         'game: loop {
             let mut loops = 0;
-            while clock.elapsed() > next_tick && loops < Game::MAX_FRAMESKIP {
-                let packet = network.step(0).unwrap();
 
+            //////////////////////////
+            use enet::{Packet, PacketMode};
+            let _data = network.poll().expect("failed to poll");
+            let msg = message.take();
+            match msg {
+                Some(x) => {
+                    let ref mut peer = network.remote().unwrap();
+                    let packet = Packet::new(x.as_bytes(), PacketMode::ReliableSequenced)
+                        .expect("failed to create");
+                    peer.send_packet(packet, 0).expect("failed to send");
+                }
+                None => {}
+            }
+            //////////////////////////
+
+            while clock.elapsed() > next_tick && loops < Game::MAX_FRAMESKIP {
                 let input = self.input.recv().expect("input thread disconnected");
                 match input {
+                    //////////////////
+                    Some(InputEvent::Input(Key::Char('a'))) => {
+                        message.replace("pressed A lol");
+                    }
+                    //////////////////
                     Some(InputEvent::Input(Key::Char('q'))) => {
                         break 'game;
                     }
