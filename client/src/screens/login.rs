@@ -1,5 +1,6 @@
+use sr_lib::network::event::NetworkEvent;
 use termion::event::Key;
-use tui::layout::{Constraint, Direction, Layout, Rect};
+use tui::layout::Rect;
 use tui::text::Span;
 use tui::widgets::{Block, Borders, Paragraph};
 
@@ -11,6 +12,9 @@ pub struct LoginScreen {
 }
 
 impl LoginScreen {
+    const WIDTH: u16 = 60;
+    const HEIGHT: u16 = 20;
+
     pub fn new() -> LoginScreen {
         LoginScreen {
             email: String::with_capacity(8),
@@ -20,63 +24,58 @@ impl LoginScreen {
 
 impl Screen for LoginScreen {
     fn render(&self, frame: &mut FrameT, _interp_ms: f64) {
-        let dialog_bounds = center_rect(60, 20, frame.size());
+        let bounds = center_rect(LoginScreen::WIDTH, LoginScreen::HEIGHT, frame.size());
 
         let dialog = Block::default().title("Login").borders(Borders::ALL);
 
-        frame.render_widget(dialog, dialog_bounds);
+        let email_label = Paragraph::new(Span::raw("Email: "));
 
-        let vchunks = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(2)
-            .constraints([Constraint::Length(10)].as_ref())
-            .split(dialog_bounds);
-
-        let hchunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(2)
-            .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
-            .split(vchunks[0]);
-
-        frame.render_widget(Paragraph::new(Span::raw("Email: ")), hchunks[0]);
-
-        let email_box =
+        let email_input =
             Paragraph::new(Span::raw(&self.email)).block(Block::default().borders(Borders::ALL));
 
-        let email_rect = Rect {
-            x: hchunks[1].x,
-            y: hchunks[1].y - 1,
-            width: 12, // 8 (email) + 2 (border) + 2 (margin)
-            height: 3, // 1 (email) + 2 (border)
-        };
+        frame.render_widget(dialog, bounds);
 
-        frame.render_widget(email_box, email_rect);
+        frame.render_widget(
+            email_label,
+            Rect {
+                x: bounds.x + 3,
+                y: bounds.y + 3,
+                width: 10,
+                height: 1,
+            },
+        );
 
-        frame.set_cursor(hchunks[1].x + self.email.len() as u16 + 1, hchunks[1].y);
+        frame.render_widget(
+            email_input,
+            Rect {
+                x: bounds.x + 13,
+                y: bounds.y + 2,
+                width: 12,
+                height: 3,
+            },
+        );
+
+        frame.set_cursor(bounds.x + 14 + self.email.len() as u16, bounds.y + 3);
     }
 
-    fn handle_input(&mut self, input: &Key, events: &mut Vec<String>) {
+    fn handle_input(&mut self, input: &Key, events: &mut Vec<NetworkEvent>) {
         match input {
-            Key::Char('a') => {
-                events.push(String::from("pressed A lol"));
+            Key::Char('\n') => {
+                if !self.email.is_empty() {
+                    events.push(NetworkEvent::LoginRequest(self.email.clone()));
+                }
             }
-            key => {
-                process_key_press(key, &mut self.email);
+            Key::Char(ch) => {
+                if (ch.is_ascii_alphanumeric() || *ch == '@' || *ch == '.')
+                    && self.email.len() < self.email.capacity()
+                {
+                    self.email.push(*ch);
+                }
             }
-        }
-    }
-}
-
-fn process_key_press(key: &Key, buffer: &mut String) {
-    match key {
-        Key::Char(ch) => {
-            if buffer.len() < buffer.capacity() {
-                buffer.push(*ch);
+            Key::Backspace | Key::Delete => {
+                self.email.pop();
             }
+            _ => {}
         }
-        Key::Backspace => {
-            buffer.pop();
-        }
-        _ => {}
     }
 }

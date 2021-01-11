@@ -1,10 +1,8 @@
-use std::str::from_utf8;
-
 use enet::{Address, Error, Event, Host, Packet, PacketMode, Peer};
 
 use crate::network::config::NetworkConfig;
-use crate::network::constants::{CONNECT_TIMEOUT_MS, FRONTEND_PORT, NUM_CHANNELS};
-use crate::network::message::NetworkMessage;
+use crate::network::constants::{FRONTEND_PORT, NUM_CHANNELS};
+use crate::network::event::{NetworkEvent, deserialize, serialize};
 
 enum NetworkState {
     Unconnected,
@@ -32,23 +30,29 @@ impl NetworkManager {
         }
     }
 
-    pub fn poll(&mut self) -> Result<Option<NetworkMessage>, Error> {
+    pub fn poll(&mut self) -> Result<Option<NetworkEvent>, Error> {
         match self.state {
             NetworkState::Unconnected => {
                 self.connect()?;
                 Ok(None)
             }
-            NetworkState::Connecting => self.service(CONNECT_TIMEOUT_MS),
+            NetworkState::Connecting => self.service(0),
             NetworkState::Ready => self.service(0),
         }
     }
 
-    pub fn send(&mut self, message: NetworkMessage) -> Result<(), Error> {
+    pub fn send(&mut self, message: NetworkEvent) -> Result<(), Error> {
         match self.remote() {
             Some(mut peer) => {
-                let data = message.data.as_bytes();
-                let packet = Packet::new(data, PacketMode::ReliableSequenced)?;
-                peer.send_packet(packet, 0)
+                match serialize(&message) {
+                    Some(bytes) => {
+                        let packet = Packet::new(&bytes, PacketMode::ReliableSequenced)?;
+                        peer.send_packet(packet, 0)
+                    }
+                    None => {
+                        Err(Error(-2))
+                    }
+                }
             }
             None => Err(Error(-1)),
         }
@@ -85,11 +89,11 @@ impl NetworkManager {
         }
     }
 
-    fn service(&mut self, timeout_ms: u32) -> Result<Option<NetworkMessage>, Error> {
+    fn service(&mut self, timeout_ms: u32) -> Result<Option<NetworkEvent>, Error> {
         match self.host.service(timeout_ms)? {
             Some(Event::Receive { ref packet, .. }) => {
-                let data = from_utf8(packet.data()).unwrap().to_string();
-                Ok(Some(NetworkMessage { data }))
+                // TODO: log invalid packets?
+                Ok(deserialize(packet.data()))
             }
             Some(Event::Connect(_)) => {
                 self.state = NetworkState::Ready;

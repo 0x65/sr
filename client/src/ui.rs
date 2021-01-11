@@ -1,5 +1,6 @@
 use std::io;
 
+use sr_lib::network::event::NetworkEvent;
 use termion::clear;
 use termion::event::Key;
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -14,7 +15,7 @@ pub type TerminalT = Terminal<BackendT>;
 
 pub trait Screen {
     fn render(&self, frame: &mut FrameT, interp_ms: f64);
-    fn handle_input(&mut self, _input: &Key, _events: &mut Vec<String>) {}
+    fn handle_input(&mut self, _input: &Key, _events: &mut Vec<NetworkEvent>) {}
 }
 
 pub struct UI {

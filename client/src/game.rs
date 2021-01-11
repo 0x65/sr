@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 use std::time::{Duration, Instant};
 
 use sr_lib::network::config::NetworkConfig;
-use sr_lib::network::message::NetworkMessage;
+use sr_lib::network::event::NetworkEvent;
 use sr_lib::network::Network;
 use termion::cursor::Goto;
 use termion::event::Key;
@@ -46,17 +46,17 @@ impl Game {
         let mut debug_num_frames = 0;
 
         // TODO: replace with real update manager class, or mpsc?
-        let mut updates: Vec<String> = Vec::new();
+        let mut updates: Vec<NetworkEvent> = Vec::new();
 
         'game: loop {
             let mut loops = 0;
 
-            let event = network.poll().expect("failed to poll");
+            let _event = network.poll().expect("failed to poll");
 
             // TODO: serialize into same packet
             for update in updates.drain(..) {
                 network
-                    .send(NetworkMessage { data: update })
+                    .send(update)
                     .expect("failed to send");
             }
 

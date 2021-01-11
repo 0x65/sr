@@ -20,7 +20,7 @@ fn main() {
     loop {
         match network.poll().expect("failed to poll") {
             Some(message) => {
-                println!("Got packet contents: {:?}", message.data);
+                println!("Got packet contents: {:?}", message);
             }
             None => {}
         }

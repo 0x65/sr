@@ -6,8 +6,8 @@ use crate::network::manager::NetworkManager;
 
 pub mod config;
 pub mod constants;
+pub mod event;
 pub mod manager;
-pub mod message;
 
 pub struct Network {
     enet: Enet,
@@ -26,6 +26,7 @@ impl Network {
                 .map(|a| Address::new(a, FRONTEND_PORT))
                 .as_ref(),
             NUM_CHANNELS,
+            // TODO: put these in NetworkConfig
             ChannelLimit::Maximum,
             BandwidthLimit::Unlimited,
             BandwidthLimit::Unlimited,
