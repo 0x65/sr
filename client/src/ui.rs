@@ -1,13 +1,12 @@
 use std::io;
 
 use termion::clear;
+use termion::event::Key;
 use termion::raw::{IntoRawMode, RawTerminal};
 use tui::backend::TermionBackend;
 use tui::terminal::Frame;
 use tui::widgets::{Block, Borders};
 use tui::Terminal;
-
-use crate::input::InputEvent;
 
 pub type BackendT = TermionBackend<RawTerminal<io::Stdout>>;
 pub type FrameT<'a> = Frame<'a, BackendT>;
@@ -15,7 +14,7 @@ pub type TerminalT = Terminal<BackendT>;
 
 pub trait Screen {
     fn render(&self, frame: &mut FrameT, interp_ms: f64);
-    fn handle_input(&mut self, _input: &InputEvent) {}
+    fn handle_input(&mut self, _input: &Key, _events: &mut Vec<String>) {}
 }
 
 pub struct UI {

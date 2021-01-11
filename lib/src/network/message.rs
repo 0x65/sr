@@ -1,3 +1,4 @@
-pub struct NetworkMessage<'a> {
-    pub data: &'a [u8],
+// TODO: replace class with NetworkEvent, add serialization to/from bytes
+pub struct NetworkMessage {
+    pub data: String,
 }

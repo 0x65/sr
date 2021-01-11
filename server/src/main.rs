@@ -18,10 +18,11 @@ fn main() {
         .expect("error during host creation");
 
     loop {
-        let poll = network.poll().expect("failed to poll");
-
-        if poll.data.is_some() {
-            println!("got packet content: {:?}", poll.data);
+        match network.poll().expect("failed to poll") {
+            Some(message) => {
+                println!("Got packet contents: {:?}", message.data);
+            }
+            None => {}
         }
     }
 }

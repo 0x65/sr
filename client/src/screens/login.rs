@@ -3,7 +3,6 @@ use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::text::Span;
 use tui::widgets::{Block, Borders, Paragraph};
 
-use crate::input::InputEvent;
 use crate::lib::layout::center_rect;
 use crate::ui::{FrameT, Screen};
 
@@ -56,9 +55,12 @@ impl Screen for LoginScreen {
         frame.set_cursor(hchunks[1].x + self.email.len() as u16 + 1, hchunks[1].y);
     }
 
-    fn handle_input(&mut self, input: &InputEvent) {
+    fn handle_input(&mut self, input: &Key, events: &mut Vec<String>) {
         match input {
-            InputEvent::Input(key) => {
+            Key::Char('a') => {
+                events.push(String::from("pressed A lol"));
+            }
+            key => {
                 process_key_press(key, &mut self.email);
             }
         }

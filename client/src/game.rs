@@ -2,11 +2,12 @@ use std::net::Ipv4Addr;
 use std::time::{Duration, Instant};
 
 use sr_lib::network::config::NetworkConfig;
+use sr_lib::network::message::NetworkMessage;
 use sr_lib::network::Network;
 use termion::cursor::Goto;
 use termion::event::Key;
 
-use crate::input::{Input, InputEvent};
+use crate::input::Input;
 use crate::screens::login::LoginScreen;
 use crate::ui::{Screen, UI};
 
@@ -44,39 +45,29 @@ impl Game {
         let mut debug_clock = Instant::now();
         let mut debug_num_frames = 0;
 
-        let mut message: Option<&str> = None;
+        // TODO: replace with real update manager class, or mpsc?
+        let mut updates: Vec<String> = Vec::new();
 
         'game: loop {
             let mut loops = 0;
 
-            //////////////////////////
-            use enet::{Packet, PacketMode};
-            let _data = network.poll().expect("failed to poll");
-            let msg = message.take();
-            match msg {
-                Some(x) => {
-                    let ref mut peer = network.remote().unwrap();
-                    let packet = Packet::new(x.as_bytes(), PacketMode::ReliableSequenced)
-                        .expect("failed to create");
-                    peer.send_packet(packet, 0).expect("failed to send");
-                }
-                None => {}
+            let event = network.poll().expect("failed to poll");
+
+            // TODO: serialize into same packet
+            for update in updates.drain(..) {
+                network
+                    .send(NetworkMessage { data: update })
+                    .expect("failed to send");
             }
-            //////////////////////////
 
             while clock.elapsed() > next_tick && loops < Game::MAX_FRAMESKIP {
                 let input = self.input.recv().expect("input thread disconnected");
                 match input {
-                    //////////////////
-                    Some(InputEvent::Input(Key::Char('a'))) => {
-                        message.replace("pressed A lol");
-                    }
-                    //////////////////
-                    Some(InputEvent::Input(Key::Char('q'))) => {
+                    Some(Key::Esc) => {
                         break 'game;
                     }
                     Some(e) => {
-                        screen.handle_input(&e);
+                        screen.handle_input(&e, &mut updates);
                     }
                     None => {}
                 }

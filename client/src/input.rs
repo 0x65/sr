@@ -5,17 +5,13 @@ use std::thread;
 use termion::event::Key;
 use termion::input::TermRead;
 
-pub enum InputEvent {
-    Input(Key),
-}
-
 #[derive(Debug)]
 pub enum InputError {
     Disconnected,
 }
 
 pub struct Input {
-    receiver: mpsc::Receiver<InputEvent>,
+    receiver: mpsc::Receiver<Key>,
     handle: thread::JoinHandle<()>,
 }
 
@@ -26,7 +22,7 @@ impl Input {
             let stdin = io::stdin();
             for event in stdin.keys() {
                 if let Ok(key) = event {
-                    if let Err(err) = sender.send(InputEvent::Input(key)) {
+                    if let Err(err) = sender.send(key) {
                         eprintln!("{}", err);
                         return;
                     }
@@ -36,7 +32,7 @@ impl Input {
         Input { receiver, handle }
     }
 
-    pub fn recv(&self) -> Result<Option<InputEvent>, InputError> {
+    pub fn recv(&self) -> Result<Option<Key>, InputError> {
         match self.receiver.try_recv() {
             Ok(e) => Ok(Some(e)),
             Err(mpsc::TryRecvError::Empty) => Ok(None),
