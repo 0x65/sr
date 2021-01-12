@@ -1,13 +1,19 @@
 use enet::{Address, Error, Event, Host, Packet, PacketMode, Peer};
 
 use crate::network::config::NetworkConfig;
-use crate::network::constants::{FRONTEND_PORT, NUM_CHANNELS};
-use crate::network::event::{NetworkEvent, deserialize, serialize};
+use crate::network::constants::SERVER_FRONTEND_PORT;
+use crate::network::event::{deserialize, serialize, NetworkEvent};
 
 enum NetworkState {
     Unconnected,
     Connecting,
     Ready,
+}
+
+#[derive(Debug)]
+pub struct NetworkResponse<'a> {
+    pub event: NetworkEvent,
+    pub peer: Peer<'a, ()>,
 }
 
 pub struct NetworkManager {
@@ -30,7 +36,7 @@ impl NetworkManager {
         }
     }
 
-    pub fn poll(&mut self) -> Result<Option<NetworkEvent>, Error> {
+    pub fn poll(&mut self) -> Result<Option<NetworkResponse>, Error> {
         match self.state {
             NetworkState::Unconnected => {
                 self.connect()?;
@@ -41,20 +47,21 @@ impl NetworkManager {
         }
     }
 
+    // TODO: separate client and server network managers? or make interface more transparent?
     pub fn send(&mut self, message: NetworkEvent) -> Result<(), Error> {
         match self.remote() {
-            Some(mut peer) => {
-                match serialize(&message) {
-                    Some(bytes) => {
-                        let packet = Packet::new(&bytes, PacketMode::ReliableSequenced)?;
-                        peer.send_packet(packet, 0)
-                    }
-                    None => {
-                        Err(Error(-2))
-                    }
-                }
-            }
+            Some(peer) => NetworkManager::send_to_peer(message, peer),
             None => Err(Error(-1)),
+        }
+    }
+
+    pub fn send_to_peer(message: NetworkEvent, mut peer: Peer<()>) -> Result<(), Error> {
+        match serialize(&message) {
+            Some(bytes) => {
+                let packet = Packet::new(&bytes, PacketMode::ReliableSequenced)?;
+                peer.send_packet(packet, 0)
+            }
+            None => Err(Error(-2)),
         }
     }
 
@@ -70,8 +77,8 @@ impl NetworkManager {
         match self.config.remote_addr {
             Some(addr) => {
                 self.state = NetworkState::Connecting;
-                let remote_addr = Address::new(addr, FRONTEND_PORT);
-                self.host.connect(&remote_addr, NUM_CHANNELS, 0)?;
+                let remote_addr = Address::new(addr, SERVER_FRONTEND_PORT);
+                self.host.connect(&remote_addr, 1, 0)?;
             }
             None => {
                 // should never really happen based on init_state()
@@ -89,11 +96,23 @@ impl NetworkManager {
         }
     }
 
-    fn service(&mut self, timeout_ms: u32) -> Result<Option<NetworkEvent>, Error> {
+    fn service(&mut self, timeout_ms: u32) -> Result<Option<NetworkResponse>, Error> {
         match self.host.service(timeout_ms)? {
-            Some(Event::Receive { ref packet, .. }) => {
-                // TODO: log invalid packets?
-                Ok(deserialize(packet.data()))
+            Some(Event::Receive {
+                ref packet,
+                ref sender,
+                ..
+            }) => {
+                match deserialize(packet.data()) {
+                    Some(event) => Ok(Some(NetworkResponse {
+                        event,
+                        peer: sender.clone(),
+                    })),
+                    None => {
+                        // TODO: log invalid packets
+                        Ok(None)
+                    }
+                }
             }
             Some(Event::Connect(_)) => {
                 self.state = NetworkState::Ready;

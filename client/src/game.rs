@@ -31,12 +31,10 @@ impl Game {
         let mut screen = LoginScreen::new();
 
         // TODO: just take a NetworkManager in constructor?
+        let network_config = NetworkConfig::default(None, Some(Ipv4Addr::LOCALHOST));
         let mut network = self
             .network
-            .create_manager(NetworkConfig {
-                local_addr: None,
-                remote_addr: Some(Ipv4Addr::LOCALHOST),
-            })
+            .create_manager(network_config)
             .expect("failed to create manager");
 
         let clock = Instant::now();
@@ -51,13 +49,16 @@ impl Game {
         'game: loop {
             let mut loops = 0;
 
-            let _event = network.poll().expect("failed to poll");
-
             // TODO: serialize into same packet
             for update in updates.drain(..) {
-                network
-                    .send(update)
-                    .expect("failed to send");
+                network.send(update).expect("failed to send");
+            }
+
+            // TODO: how often to poll?
+            let event = network.poll().expect("failed to poll");
+
+            if let Some(ref e) = event {
+                screen.handle_event(&e.event, &mut updates);
             }
 
             while clock.elapsed() > next_tick && loops < Game::MAX_FRAMESKIP {

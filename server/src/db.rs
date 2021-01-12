@@ -28,8 +28,8 @@ pub mod user {
     use rusqlite::Result;
 
     pub struct User {
-        id: i64,
-        email: String,
+        pub id: i64,
+        pub email: String,
     }
 
     pub fn insert(email: &str) -> Result<i64> {

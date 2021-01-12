@@ -1,4 +1,3 @@
 // TODO: document constants
-pub const FRONTEND_PORT: u16 = 3333;
-pub const NUM_CHANNELS: usize = 1;
-pub const CONNECT_TIMEOUT_MS: u32 = 1000;
+pub const SERVER_FRONTEND_PORT: u16 = 3333;
+pub const SERVER_DEFAULT_PEER_LIMIT: usize = 1;

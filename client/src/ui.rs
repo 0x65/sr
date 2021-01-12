@@ -15,7 +15,8 @@ pub type TerminalT = Terminal<BackendT>;
 
 pub trait Screen {
     fn render(&self, frame: &mut FrameT, interp_ms: f64);
-    fn handle_input(&mut self, _input: &Key, _events: &mut Vec<NetworkEvent>) {}
+    fn handle_input(&mut self, _input: &Key, _updates: &mut Vec<NetworkEvent>) {}
+    fn handle_event(&mut self, _event: &NetworkEvent, _updates: &mut Vec<NetworkEvent>) {}
 }
 
 pub struct UI {
@@ -35,7 +36,6 @@ impl UI {
         self.terminal.draw(|f| {
             let border = Block::default().borders(Borders::ALL);
             f.render_widget(border, f.size());
-
             screen.render(f, interpolation);
         })
     }
