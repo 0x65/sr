@@ -1,7 +1,6 @@
-use std::net::Ipv4Addr;
 use std::time::{Duration, Instant};
 
-use sr_lib::network::config::NetworkConfig;
+use sr_lib::network::config::ClientConfig;
 use sr_lib::network::event::NetworkEvent;
 use sr_lib::network::Network;
 use termion::cursor::Goto;
@@ -31,11 +30,10 @@ impl Game {
         let mut screen = LoginScreen::new();
 
         // TODO: just take a NetworkManager in constructor?
-        let network_config = NetworkConfig::default(None, Some(Ipv4Addr::LOCALHOST));
         let mut network = self
             .network
-            .create_manager(network_config)
-            .expect("failed to create manager");
+            .create_client(ClientConfig::default())
+            .expect("error during client setup");
 
         let clock = Instant::now();
         let mut next_tick = clock.elapsed();
