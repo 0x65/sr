@@ -24,10 +24,11 @@ pub struct LoginScreen {
 impl LoginScreen {
     const WIDTH: u16 = 60;
     const HEIGHT: u16 = 20;
+    const EMAIL_MAX_LEN: usize = 8;
 
     pub fn new() -> LoginScreen {
         LoginScreen {
-            email: String::with_capacity(8),
+            email: String::with_capacity(LoginScreen::EMAIL_MAX_LEN),
             state: LoginState::Initial,
         }
     }
@@ -35,29 +36,24 @@ impl LoginScreen {
 
 impl Screen for LoginScreen {
     fn render(&self, frame: &mut FrameT, game: Rect) {
-        // TODO: instantiate some of these elements statically
         let bounds = center_rect(LoginScreen::WIDTH, LoginScreen::HEIGHT, game);
 
-        let dialog = Block::default().title("Login").borders(Borders::ALL);
-
-        let email_label = Paragraph::new(Span::raw("Email: "));
-
-        let email_input =
-            Paragraph::new(Span::raw(&self.email)).block(Block::default().borders(Borders::ALL));
-
-        let instruction_text = match self.state {
+        let instruction = match self.state {
             LoginState::Initial => "Press <ENTER> to submit.",
             LoginState::Processing => "Processing...",
             LoginState::Success(_) => "SUCCESS!",
             LoginState::Error => "ERROR! Invalid credentials.",
         };
 
-        let instruction_label = Paragraph::new(Span::raw(instruction_text));
-
-        frame.render_widget(dialog, bounds);
-
+        // main dialog
         frame.render_widget(
-            email_label,
+            Block::default().title("Login").borders(Borders::ALL),
+            bounds,
+        );
+
+        // email label
+        frame.render_widget(
+            Paragraph::new(Span::raw("Email: ")),
             Rect {
                 x: bounds.x + 3,
                 y: bounds.y + 3,
@@ -66,8 +62,9 @@ impl Screen for LoginScreen {
             },
         );
 
+        // email input
         frame.render_widget(
-            email_input,
+            Paragraph::new(Span::raw(&self.email)).block(Block::default().borders(Borders::ALL)),
             Rect {
                 x: bounds.x + 13,
                 y: bounds.y + 2,
@@ -76,16 +73,18 @@ impl Screen for LoginScreen {
             },
         );
 
+        // instruction text
         frame.render_widget(
-            instruction_label,
+            Paragraph::new(Span::raw(instruction)),
             Rect {
                 x: bounds.x + 3,
                 y: bounds.y + 6,
-                width: instruction_text.len() as u16,
+                width: instruction.len() as u16,
                 height: 1,
             },
         );
 
+        // set input cursor based on offsets above
         frame.set_cursor(bounds.x + 14 + self.email.len() as u16, bounds.y + 3);
     }
 

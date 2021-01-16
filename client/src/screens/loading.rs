@@ -27,17 +27,14 @@ impl LoadingScreen {
 
 impl Screen for LoadingScreen {
     fn render(&self, frame: &mut FrameT, game: Rect) {
-        // TODO: instantiate some of these elements statically
         let bounds = center_rect(LoadingScreen::WIDTH, LoadingScreen::HEIGHT, game);
 
-        let dialog = Block::default().borders(Borders::ALL);
+        // main dialog
+        frame.render_widget(Block::default().borders(Borders::ALL), bounds);
 
-        let label = Paragraph::new(Span::raw("L O A D I N G"));
-
-        frame.render_widget(dialog, bounds);
-
+        // loading text
         frame.render_widget(
-            label,
+            Paragraph::new(Span::raw("L O A D I N G")),
             Rect {
                 x: bounds.x + 8,
                 y: bounds.y + 2,
