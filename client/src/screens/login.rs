@@ -34,9 +34,9 @@ impl LoginScreen {
 }
 
 impl Screen for LoginScreen {
-    fn render(&self, frame: &mut FrameT) {
+    fn render(&self, frame: &mut FrameT, game: Rect) {
         // TODO: instantiate some of these elements statically
-        let bounds = center_rect(LoginScreen::WIDTH, LoginScreen::HEIGHT, frame.size());
+        let bounds = center_rect(LoginScreen::WIDTH, LoginScreen::HEIGHT, game);
 
         let dialog = Block::default().title("Login").borders(Borders::ALL);
 

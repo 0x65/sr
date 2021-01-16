@@ -26,9 +26,9 @@ impl LoadingScreen {
 }
 
 impl Screen for LoadingScreen {
-    fn render(&self, frame: &mut FrameT) {
+    fn render(&self, frame: &mut FrameT, game: Rect) {
         // TODO: instantiate some of these elements statically
-        let bounds = center_rect(LoadingScreen::WIDTH, LoadingScreen::HEIGHT, frame.size());
+        let bounds = center_rect(LoadingScreen::WIDTH, LoadingScreen::HEIGHT, game);
 
         let dialog = Block::default().borders(Borders::ALL);
 
