@@ -27,7 +27,8 @@ impl Game {
 
     // TODO: proper error handling
     pub fn run(&mut self) {
-        let mut screen = LoginScreen::new();
+        // TODO: more efficient implementation than Box
+        let mut screen: Box<dyn Screen> = Box::new(LoginScreen::new());
 
         // TODO: just take a NetworkManager in constructor?
         let mut network = self
@@ -47,46 +48,49 @@ impl Game {
         'game: loop {
             let mut loops = 0;
 
-            // TODO: serialize into same packet
-            for update in updates.drain(..) {
-                network.send(update).expect("failed to send");
-            }
-
-            // TODO: how often to poll?
-            let event = network.poll().expect("failed to poll");
-
-            if let Some(ref e) = event {
-                screen.handle_event(&e.event, &mut updates);
-            }
-
             while clock.elapsed() > next_tick && loops < Game::MAX_FRAMESKIP {
-                let input = self.input.recv().expect("input thread disconnected");
-                match input {
-                    Some(Key::Esc) => {
+                // TODO: move network polling/sending to separate thread
+                // (serialization, deserialization, etc. is not necessary for critical path)
+                if let Some(ref e) = network.poll().expect("failed to poll") {
+                    screen.handle_event(&e.event, &mut updates);
+                }
+
+                if let Some(key) = self.input.recv().expect("input thread disconnected") {
+                    if Game::exit(key) {
                         break 'game;
+                    } else {
+                        screen.handle_input(&key, &mut updates);
                     }
-                    Some(e) => {
-                        screen.handle_input(&e, &mut updates);
-                    }
-                    None => {}
+                }
+
+                // TODO: serialize into same packet
+                for update in updates.drain(..) {
+                    network.send(update).expect("failed to send");
                 }
 
                 next_tick += Game::SKIP_TICKS;
                 loops += 1;
             }
 
+            /*
             let interp_ms = ((clock.elapsed() + Game::SKIP_TICKS - next_tick).as_millis() as f64)
                 / (Game::SKIP_TICKS.as_millis() as f64);
+            */
 
-            self.ui
-                .render(&screen, interp_ms)
-                .expect("failed to render screen");
+            self.ui.render(&screen).expect("failed to render screen");
 
             Game::display_debug_info(&mut debug_clock, &mut debug_num_frames);
+
+            if let Some(new_screen) = screen.transition() {
+                screen = new_screen;
+            }
         }
     }
 
-    // TODO: make separate debug info screen
+    fn exit(key: Key) -> bool {
+        key == Key::Esc
+    }
+
     fn display_debug_info(clock: &mut Instant, num_frames: &mut usize) {
         *num_frames += 1;
         let elapsed = clock.elapsed().as_millis();

@@ -5,19 +5,20 @@ use tui::text::Span;
 use tui::widgets::{Block, Borders, Paragraph};
 
 use crate::lib::layout::center_rect;
+use crate::screens::loading::LoadingScreen;
 use crate::ui::{FrameT, Screen};
 
 #[derive(PartialEq, Debug)]
-enum LoginScreenState {
+enum LoginState {
     Initial,
     Processing,
-    Success,
     Error,
+    Success(i64),
 }
 
 pub struct LoginScreen {
     email: String,
-    state: LoginScreenState,
+    state: LoginState,
 }
 
 impl LoginScreen {
@@ -27,13 +28,14 @@ impl LoginScreen {
     pub fn new() -> LoginScreen {
         LoginScreen {
             email: String::with_capacity(8),
-            state: LoginScreenState::Initial,
+            state: LoginState::Initial,
         }
     }
 }
 
 impl Screen for LoginScreen {
-    fn render(&self, frame: &mut FrameT, _interp_ms: f64) {
+    fn render(&self, frame: &mut FrameT) {
+        // TODO: instantiate some of these elements statically
         let bounds = center_rect(LoginScreen::WIDTH, LoginScreen::HEIGHT, frame.size());
 
         let dialog = Block::default().title("Login").borders(Borders::ALL);
@@ -44,10 +46,10 @@ impl Screen for LoginScreen {
             Paragraph::new(Span::raw(&self.email)).block(Block::default().borders(Borders::ALL));
 
         let instruction_text = match self.state {
-            LoginScreenState::Initial => "Press <ENTER> to submit.",
-            LoginScreenState::Processing => "Processing...",
-            LoginScreenState::Success => "SUCCESS!",
-            LoginScreenState::Error => "ERROR! Invalid credentials.",
+            LoginState::Initial => "Press <ENTER> to submit.",
+            LoginState::Processing => "Processing...",
+            LoginState::Success(_) => "SUCCESS!",
+            LoginState::Error => "ERROR! Invalid credentials.",
         };
 
         let instruction_label = Paragraph::new(Span::raw(instruction_text));
@@ -78,7 +80,7 @@ impl Screen for LoginScreen {
             instruction_label,
             Rect {
                 x: bounds.x + 3,
-                y: bounds.y + 5,
+                y: bounds.y + 6,
                 width: instruction_text.len() as u16,
                 height: 1,
             },
@@ -88,12 +90,12 @@ impl Screen for LoginScreen {
     }
 
     fn handle_input(&mut self, input: &Key, updates: &mut Vec<NetworkEvent>) {
-        if self.state != LoginScreenState::Processing {
+        if self.state != LoginState::Processing {
             match input {
                 Key::Char('\n') => {
                     if !self.email.is_empty() {
                         updates.push(NetworkEvent::LoginRequest(self.email.clone()));
-                        self.state = LoginScreenState::Processing;
+                        self.state = LoginState::Processing;
                     }
                 }
                 Key::Char(ch) => {
@@ -114,15 +116,22 @@ impl Screen for LoginScreen {
     fn handle_event(&mut self, event: &NetworkEvent, _updates: &mut Vec<NetworkEvent>) {
         match event {
             NetworkEvent::LoginResponse(user_id) => {
-                if self.state == LoginScreenState::Processing {
+                if self.state == LoginState::Processing {
                     if *user_id > 0 {
-                        self.state = LoginScreenState::Success;
+                        self.state = LoginState::Success(*user_id);
                     } else {
-                        self.state = LoginScreenState::Error;
+                        self.state = LoginState::Error;
                     }
                 }
             }
             _ => { /* ignore other events */ }
+        }
+    }
+
+    fn transition(&self) -> Option<Box<dyn Screen>> {
+        match self.state {
+            LoginState::Success(user_id) => Some(Box::new(LoadingScreen::new(user_id))),
+            _ => None,
         }
     }
 }

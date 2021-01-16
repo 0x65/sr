@@ -15,6 +15,7 @@ pub struct Network {
     enet: Enet,
 }
 
+// TODO: move server/client modules out of lib
 impl Network {
     pub fn new() -> Result<Network, InitializationError> {
         let enet = Enet::new()?;
