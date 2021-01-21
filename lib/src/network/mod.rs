@@ -1,51 +1,72 @@
-use enet::{BandwidthLimit, ChannelLimit, Enet, Error, InitializationError};
+use std::net::SocketAddr;
+use std::thread;
 
-use crate::network::client::Client;
-use crate::network::config::{ClientConfig, ServerConfig};
-use crate::network::server::Server;
+use crossbeam_channel::{Receiver, Sender, TryRecvError};
+use laminar::{ErrorKind, Packet, Result, Socket, SocketEvent};
 
-pub mod client;
+use crate::message::{deserialize, serialize, Message};
+use crate::network::config::NetworkConfig;
+
 pub mod config;
 pub mod constants;
-pub mod event;
-pub mod server;
-pub mod util;
 
+pub enum NetworkEvent {
+    Message(Message, SocketAddr),
+    Connect(SocketAddr),
+    Timeout(SocketAddr),
+    Disconnect(SocketAddr),
+}
+
+// TODO: NETWORK ERROR
 pub struct Network {
-    enet: Enet,
+    config: NetworkConfig,
+    sender: Sender<Packet>,
+    receiver: Receiver<SocketEvent>,
+    thread_handle: thread::JoinHandle<()>,
 }
 
-// TODO: move server/client modules out of lib
 impl Network {
-    pub fn new() -> Result<Network, InitializationError> {
-        let enet = Enet::new()?;
-        Ok(Network { enet })
+    pub fn new(config: NetworkConfig) -> Result<Network> {
+        let mut socket = Socket::bind(config.local_addr)?;
+        let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
+        let thread_handle = thread::spawn(move || socket.start_polling());
+        Ok(Network {
+            config,
+            sender,
+            receiver,
+            thread_handle,
+        })
     }
 
-    pub fn create_client(&self, config: ClientConfig) -> Result<Client, Error> {
-        let host = self.enet.create_host::<()>(
-            None, // local addr
-            1,    // max num peers
-            ChannelLimit::Maximum,
-            convert_limit(config.bandwidth_incoming_limit_bytes_per_s),
-            convert_limit(config.bandwidth_outgoing_limit_bytes_per_s),
-        )?;
-        Ok(Client::new(config, host))
+    pub fn recv(&self) -> Result<Option<NetworkEvent>> {
+        match self.receiver.try_recv() {
+            Ok(socket_event) => match socket_event {
+                SocketEvent::Packet(p) => Network::read_packet(p).map(Option::Some),
+                SocketEvent::Connect(a) => Ok(Some(NetworkEvent::Connect(a))),
+                SocketEvent::Timeout(a) => Ok(Some(NetworkEvent::Timeout(a))),
+                SocketEvent::Disconnect(a) => Ok(Some(NetworkEvent::Disconnect(a))),
+            },
+            Err(TryRecvError::Empty) => Ok(None),
+            Err(TryRecvError::Disconnected) => Err(ErrorKind::ReceivedDataToShort), // TODO: FIX
+        }
     }
 
-    pub fn create_server(&self, config: ServerConfig) -> Result<Server, Error> {
-        let host = self.enet.create_host::<()>(
-            Some(&config.local_addr),
-            config.max_num_peers,
-            ChannelLimit::Maximum,
-            convert_limit(config.bandwidth_incoming_limit_bytes_per_s),
-            convert_limit(config.bandwidth_outgoing_limit_bytes_per_s),
-        )?;
-        Ok(Server::new(host))
+    pub fn send(&mut self, msg: Message) -> Result<()> {
+        match self.config.remote_addr {
+            Some(peer) => self.send_to_peer(msg, peer),
+            None => Err(ErrorKind::ReceivedDataToShort), // TODO: fix
+        }
     }
-}
 
-#[inline]
-fn convert_limit(limit: Option<u32>) -> BandwidthLimit {
-    limit.map_or(BandwidthLimit::Unlimited, BandwidthLimit::Limited)
+    pub fn send_to_peer(&mut self, msg: Message, peer: SocketAddr) -> Result<()> {
+        let serialized = serialize(&msg).unwrap(); // TODO fix
+        let packet = Packet::reliable_unordered(peer, serialized);
+        self.sender.send(packet).unwrap(); // TODO fix
+        Ok(())
+    }
+
+    fn read_packet(packet: Packet) -> Result<NetworkEvent> {
+        let deserialized = deserialize(packet.payload()).unwrap(); // TODO: fix
+        Ok(NetworkEvent::Message(deserialized, packet.addr()))
+    }
 }

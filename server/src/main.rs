@@ -1,38 +1,50 @@
-use sr_lib::network::config::ServerConfig;
-use sr_lib::network::event::NetworkEvent;
-use sr_lib::network::util::send_to_peer;
-use sr_lib::network::Network;
+use sr_lib::message::Message;
+use sr_lib::network::config::NetworkConfig;
+use sr_lib::network::{Network, NetworkEvent};
 
 mod db;
 
 fn main() {
     // TODO: move to separate server startup script
-    db::setup_db().expect("error during db setup");
+    db::setup_db().expect("failed to set up DB");
 
-    let mut network = Network::new()
-        .expect("error during network setup")
-        .create_server(ServerConfig::default())
-        .expect("error during server setup");
+    let mut network = Network::new(NetworkConfig::server()).expect("failed to init network");
 
     loop {
-        if let Some(message) = network.poll().expect("failed to poll") {
-            println!("Got packet contents: {:?}", message);
-            match &message.event {
-                NetworkEvent::LoginRequest(email) => {
-                    let response = handle_login_request(&email);
-                    send_to_peer(message.peer, response).expect("failed to send");
+        match network.recv() {
+            Ok(Some(network_event)) => match network_event {
+                NetworkEvent::Message(msg, addr) => {
+                    println!("Got {:?} from {:?}", msg, addr);
+                    match msg {
+                        Message::LoginRequest(email) => {
+                            let response = handle_login_request(&email);
+                            network
+                                .send_to_peer(response, addr)
+                                .expect("failed to send");
+                        }
+                        _ => {
+                            println!("Got unsupported message type: {:?}", msg);
+                        }
+                    }
                 }
-                _ => {
-                    println!("Got unsupported event type: {:?}", message);
+                NetworkEvent::Connect(addr) => {
+                    println!("Got connection from {:?}", addr);
                 }
-            };
+                NetworkEvent::Timeout(addr) => {
+                    println!("Got timeout from {:?}", addr);
+                }
+                NetworkEvent::Disconnect(addr) => {
+                    println!("Got disconnection from {:?}", addr);
+                }
+            },
+            _ => { /* TODO: handle errors */ }
         }
     }
 }
 
-fn handle_login_request(email: &str) -> NetworkEvent {
+fn handle_login_request(email: &str) -> Message {
     match db::user::get_by_email(&email) {
-        Ok(user) => NetworkEvent::LoginResponse(user.id),
-        Err(_) => NetworkEvent::LoginResponse(0),
+        Ok(user) => Message::LoginResponse(user.id),
+        Err(_) => Message::LoginResponse(0),
     }
 }

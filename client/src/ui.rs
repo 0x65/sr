@@ -1,7 +1,7 @@
 use std::cmp;
 use std::io;
 
-use sr_lib::network::event::NetworkEvent;
+use sr_lib::message::Message;
 use termion::event::Key;
 use termion::raw::{IntoRawMode, RawTerminal};
 use termion::{clear, color, cursor};
@@ -19,8 +19,8 @@ pub type TerminalT = Terminal<BackendT>;
 
 pub trait Screen {
     fn render(&self, frame: &mut FrameT, game: Rect);
-    fn handle_input(&mut self, _input: &Key, _updates: &mut Vec<NetworkEvent>) {}
-    fn handle_event(&mut self, _event: &NetworkEvent, _updates: &mut Vec<NetworkEvent>) {}
+    fn handle_input(&mut self, _input: &Key, _updates: &mut Vec<Message>) {}
+    fn handle_event(&mut self, _msg: &Message, _updates: &mut Vec<Message>) {}
     // TODO: more efficient implementation than Box
     fn transition(&self) -> Option<Box<dyn Screen>> {
         None

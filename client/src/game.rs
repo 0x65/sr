@@ -1,8 +1,7 @@
 use std::time::{Duration, Instant};
 
-use sr_lib::network::config::ClientConfig;
-use sr_lib::network::event::NetworkEvent;
-use sr_lib::network::Network;
+use sr_lib::message::Message;
+use sr_lib::network::{Network, NetworkEvent};
 use termion::cursor::Goto;
 use termion::event::Key;
 
@@ -30,42 +29,44 @@ impl Game {
         // TODO: more efficient implementation than Box
         let mut screen: Box<dyn Screen> = Box::new(LoginScreen::new());
 
-        // TODO: just take a NetworkManager in constructor?
-        let mut network = self
-            .network
-            .create_client(ClientConfig::default())
-            .expect("error during client setup");
-
         let clock = Instant::now();
         let mut next_tick = clock.elapsed();
 
         let mut debug_clock = Instant::now();
         let mut debug_num_frames = 0;
 
-        // TODO: replace with real update manager class, or mpsc?
-        let mut updates: Vec<NetworkEvent> = Vec::new();
+        // TODO: replace with real update manager class
+        let mut updates: Vec<Message> = Vec::new();
 
         'game: loop {
             let mut loops = 0;
 
             while clock.elapsed() > next_tick && loops < Game::MAX_FRAMESKIP {
-                // TODO: move network polling/sending to separate thread
-                // (serialization, deserialization, etc. is not necessary for critical path)
-                if let Some(ref e) = network.poll().expect("failed to poll") {
-                    screen.handle_event(&e.event, &mut updates);
+                match self.network.recv() {
+                    Ok(Some(network_event)) => match network_event {
+                        NetworkEvent::Message(msg, _) => {
+                            screen.handle_event(&msg, &mut updates);
+                        }
+                        _ => { /* TODO: handle other events */ }
+                    },
+                    _ => { /* TODO: handle errors */ }
                 }
 
-                if let Some(key) = self.input.recv().expect("input thread disconnected") {
-                    if Game::exit(key) {
-                        break 'game;
-                    } else {
-                        screen.handle_input(&key, &mut updates);
+                match self.input.recv() {
+                    Ok(Some(key)) => {
+                        if Game::exit(key) {
+                            break 'game;
+                        } else {
+                            screen.handle_input(&key, &mut updates);
+                        }
                     }
+                    _ => { /* TODO: handle errors */ }
                 }
 
+                // TODO (LAMINAR): make sure to always send at least a heartbeat
                 // TODO: serialize into same packet
                 for update in updates.drain(..) {
-                    network.send(update).expect("failed to send");
+                    self.network.send(update).expect("failed to send");
                 }
 
                 next_tick += Game::SKIP_TICKS;

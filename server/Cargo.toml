@@ -9,6 +9,6 @@ name = "sr_server"
 path = "src/main.rs"
 
 [dependencies]
-enet = "^0.2.3"
+laminar = "0.4"
 rusqlite = "^0.24.2"
 sr_lib = { path = "../lib", version = "^0.0.1" }

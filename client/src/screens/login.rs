@@ -1,4 +1,4 @@
-use sr_lib::network::event::NetworkEvent;
+use sr_lib::message::Message;
 use termion::event::Key;
 use tui::layout::Rect;
 use tui::text::Span;
@@ -88,12 +88,12 @@ impl Screen for LoginScreen {
         frame.set_cursor(bounds.x + 14 + self.email.len() as u16, bounds.y + 3);
     }
 
-    fn handle_input(&mut self, input: &Key, updates: &mut Vec<NetworkEvent>) {
+    fn handle_input(&mut self, input: &Key, updates: &mut Vec<Message>) {
         if self.state != LoginState::Processing {
             match input {
                 Key::Char('\n') => {
                     if !self.email.is_empty() {
-                        updates.push(NetworkEvent::LoginRequest(self.email.clone()));
+                        updates.push(Message::LoginRequest(self.email.clone()));
                         self.state = LoginState::Processing;
                     }
                 }
@@ -112,9 +112,9 @@ impl Screen for LoginScreen {
         }
     }
 
-    fn handle_event(&mut self, event: &NetworkEvent, _updates: &mut Vec<NetworkEvent>) {
-        match event {
-            NetworkEvent::LoginResponse(user_id) => {
+    fn handle_event(&mut self, msg: &Message, _updates: &mut Vec<Message>) {
+        match msg {
+            Message::LoginResponse(user_id) => {
                 if self.state == LoginState::Processing {
                     if *user_id > 0 {
                         self.state = LoginState::Success(*user_id);
